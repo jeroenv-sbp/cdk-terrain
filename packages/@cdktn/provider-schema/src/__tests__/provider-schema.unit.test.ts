@@ -229,11 +229,37 @@ describe("collectModuleProviderAliases", () => {
     ]);
   });
 
+  it("collects a bare local name as a required default configuration", () => {
+    // `configuration_aliases = [aws, aws.pip_read]` makes the module demand
+    // that the caller pass its default `aws` configuration explicitly too
+    const parsed = {
+      terraform: [
+        {
+          required_providers: [
+            {
+              aws: {
+                source: "hashicorp/aws",
+                configuration_aliases: ["${aws}", "${aws.pip_read}"],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(collectModuleProviderAliases(parsed)).toEqual([
+      { localName: "aws", alias: undefined, source: "hashicorp/aws" },
+      { localName: "aws", alias: "pip_read", source: "hashicorp/aws" },
+    ]);
+  });
+
   it("ignores entries that are not provider configuration references", () => {
     const parsed = {
       terraform: {
         required_providers: {
-          aws: { configuration_aliases: ["${aws}", "${var.not_an_alias.x}"] },
+          aws: {
+            configuration_aliases: ["${var.not_an_alias.x}", "${aws[0]}"],
+          },
         },
       },
     };
@@ -264,6 +290,24 @@ describe("applyModuleProviderAliases", () => {
             "aws.global_region": "aws.global_region",
             "aws.secondary": "aws.secondary",
           },
+        },
+      },
+    });
+  });
+
+  it("passes the default configuration when the module requires it", () => {
+    const config = applyModuleProviderAliases(configWithModule(), "my_module", [
+      { localName: "aws", source: "hashicorp/aws" },
+      { localName: "aws", alias: "pip_read", source: "hashicorp/aws" },
+    ]);
+
+    expect(config).toEqual({
+      terraform: { required_providers: { aws: { source: "hashicorp/aws" } } },
+      provider: { aws: [{}, { alias: "pip_read" }] },
+      module: {
+        my_module: {
+          source: "./mod",
+          providers: { aws: "aws", "aws.pip_read": "aws.pip_read" },
         },
       },
     });
