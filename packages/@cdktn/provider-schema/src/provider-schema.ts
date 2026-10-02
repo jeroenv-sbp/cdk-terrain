@@ -525,7 +525,11 @@ export function collectModuleProviderAliases(
           if (!match) continue;
 
           const [, localName, alias] = match;
-          const entryAlias = { localName, alias, source: provider?.source };
+          const entryAlias: ModuleProviderAlias = {
+            localName,
+            alias,
+            source: provider?.source,
+          };
           const key = providerReference(entryAlias);
           if (seen.has(key)) continue;
           seen.add(key);
@@ -544,7 +548,7 @@ export function collectModuleProviderAliases(
  * root config and passes them into the module call, which is what Terraform
  * demands of anyone calling a module with `configuration_aliases`.
  *
- * The alias blocks stay empty: `terraform get` only builds the configuration
+ * The provider blocks stay empty: `terraform get` only builds the configuration
  * tree, it never configures or installs a provider. Sources are mirrored from
  * the module's own `required_providers` so a module referring to, say,
  * hashicorp/aws under a non-default local name still resolves to the same
